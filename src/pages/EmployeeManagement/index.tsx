@@ -104,14 +104,25 @@ const EmployeeManagement: React.FC = () => {
       filters: Object.values(Department).map((dept) => ({ text: dept, value: dept })),
       onFilter: (value, record) => record.department === value,
     },
-    {
-      title: 'Lương',
-      dataIndex: 'salary',
-      key: 'salary',
-      sorter: (a, b) => a.salary - b.salary,
-      defaultSortOrder: 'descend',
-      render: (salary: number) => `${salary.toLocaleString()} VNĐ`,
-    },
+
+      {
+        title: 'Lương',
+        dataIndex: 'salary',
+        key: 'salary',
+        sorter: (a, b) => {
+          // Loại bỏ dấu phẩy và chuyển thành số để so sánh chính xác
+          const salaryA = parseFloat(a.salary.toString().replace(/,/g, ''));
+          const salaryB = parseFloat(b.salary.toString().replace(/,/g, ''));
+
+          return salaryA - salaryB;
+        },
+        defaultSortOrder: 'descend',
+        render: (salary: number) => {
+          // Hiển thị lương với dấu phẩy
+          return `${salary.toLocaleString()} VNĐ`;
+        }
+      },
+
     {
       title: 'Trạng thái',
       dataIndex: 'status',

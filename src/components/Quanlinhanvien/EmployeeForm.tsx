@@ -52,18 +52,22 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
           rules={[
             { required: true, message: 'Vui lòng nhập tên nhân viên' },
             { max: 50, message: 'Tên nhân viên không được vượt quá 50 ký tự' },
-            { pattern: /^[a-zA-Z0-9À-ỹ\s]+$/, message: 'Tên nhân viên không được chứa ký tự đặc biệt' }
+            { pattern: /^[a-zA-Z0-9À-ỹ\s]+$/, message: 'Tên nhân viên không được chứa ký tự đặc biệt' },
+            { whitespace: true, message: 'Tên nhân viên không được chỉ chứa khoảng trắng' }
           ]}
         >
-          <Input />
+          <Input placeholder="Nhập tên nhân viên" />
         </Form.Item>
 
         <Form.Item
           label="Chức vụ"
           name="position"
-          rules={[{ required: true, message: 'Vui lòng chọn chức vụ' }]}
+          rules={[
+            { required: true, message: 'Vui lòng chọn chức vụ' },
+            { type: 'enum', enum: Object.values(Position), message: 'Chức vụ không hợp lệ' }
+          ]}
         >
-          <Select>
+          <Select placeholder="Chọn chức vụ">
             {Object.values(Position).map((pos) => (
               <Select.Option key={pos} value={pos}>
                 {pos}
@@ -75,9 +79,12 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
         <Form.Item
           label="Phòng ban"
           name="department"
-          rules={[{ required: true, message: 'Vui lòng chọn phòng ban' }]}
+          rules={[
+            { required: true, message: 'Vui lòng chọn phòng ban' },
+            { type: 'enum', enum: Object.values(Department), message: 'Phòng ban không hợp lệ' }
+          ]}
         >
-          <Select>
+          <Select placeholder="Chọn phòng ban">
             {Object.values(Department).map((dept) => (
               <Select.Option key={dept} value={dept}>
                 {dept}
@@ -89,21 +96,34 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
         <Form.Item
           label="Lương"
           name="salary"
-          rules={[{ required: true, message: 'Vui lòng nhập lương' }]}
+          rules={[
+            { required: true, message: 'Vui lòng nhập lương' }
+          ]}
+          getValueFromEvent={(e) => {
+            const { value } = e.target;
+            const rawValue = value.replace(/[^\d]/g, '');
+            if (!rawValue) return '';
+            const num = parseInt(rawValue, 10);
+            return num;
+          }}
+          normalize={(value) => {
+            if (!value) return '';
+            const num = parseInt(value.toString(), 10);
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+          }}
         >
-          <InputNumber
-            style={{ width: '100%' }}
-            formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-            parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
-          />
+          <Input placeholder="Nhập lương (VNĐ)" />
         </Form.Item>
 
         <Form.Item
           label="Trạng thái"
           name="status"
-          rules={[{ required: true, message: 'Vui lòng chọn trạng thái' }]}
+          rules={[
+            { required: true, message: 'Vui lòng chọn trạng thái' },
+            { type: 'enum', enum: Object.values(EmployeeStatus), message: 'Trạng thái không hợp lệ' }
+          ]}
         >
-          <Select>
+          <Select placeholder="Chọn trạng thái">
             {Object.values(EmployeeStatus).map((status) => (
               <Select.Option key={status} value={status}>
                 {status}
