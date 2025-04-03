@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Form, Input, Select, InputNumber, Button } from 'antd';
 import { Employee, Position, Department, EmployeeStatus } from '@/models/Quanlinhanvien/types';
 
@@ -6,7 +6,6 @@ interface EmployeeFormProps {
   initialValues?: Employee;
   onSubmit: (values: Omit<Employee, 'id'>) => void;
   onCancel: () => void;
-  nextId: number;
   loading?: boolean;
 }
 
@@ -14,10 +13,17 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
   initialValues,
   onSubmit,
   onCancel,
-  nextId,
   loading = false
 }) => {
   const [form] = Form.useForm();
+
+  useEffect(() => {
+    if (initialValues) {
+      form.setFieldsValue(initialValues);
+    } else {
+      form.resetFields();
+    }
+  }, [initialValues, form]);
 
   const handleSubmit = (values: any) => {
     onSubmit(values);
@@ -27,21 +33,25 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
     <Form
       form={form}
       layout="vertical"
-      initialValues={initialValues}
       onFinish={handleSubmit}
     >
-      <Form.Item
-        label="Mã nhân viên"
-        name="id"
-        initialValue={initialValues?.id || nextId}
-      >
-        <Input disabled />
-      </Form.Item>
+      {initialValues && (
+        <Form.Item
+          label="Mã nhân viên"
+          name="id"
+        >
+          <Input disabled />
+        </Form.Item>
+      )}
 
       <Form.Item
         label="Tên nhân viên"
         name="name"
-        rules={[{ required: true, message: 'Vui lòng nhập tên nhân viên' }]}
+        rules={[
+          { required: true, message: 'Vui lòng nhập tên nhân viên' },
+          { max: 50, message: 'Tên nhân viên không được vượt quá 50 ký tự' },
+          { pattern: /^[a-zA-Z0-9À-ỹ\s]+$/, message: 'Tên nhân viên không được chứa ký tự đặc biệt' }
+        ]}
       >
         <Input />
       </Form.Item>

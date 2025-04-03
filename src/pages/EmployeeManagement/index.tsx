@@ -33,8 +33,8 @@ const EmployeeManagement: React.FC = () => {
   };
 
   const handleDelete = (record: Employee) => {
-    if (record.status === EmployeeStatus.ACTIVE) {
-      message.error('Không thể xóa nhân viên đang hoạt động');
+    if (record.status !== EmployeeStatus.PROBATION && record.status !== EmployeeStatus.RESIGNED) {
+      message.error('Chỉ có thể xóa nhân viên có trạng thái "Thử việc" hoặc "Đã thôi việc"');
       return;
     }
 
@@ -62,7 +62,11 @@ const EmployeeManagement: React.FC = () => {
         updateEmployee(selectedEmployee.id, values);
         message.success('Cập nhật nhân viên thành công');
       } else {
-        addEmployee(values);
+        const newEmployee = {
+          ...values,
+          id: getNextId().toString()
+        };
+        addEmployee(newEmployee);
         message.success('Thêm nhân viên thành công');
       }
       setIsModalVisible(false);
@@ -105,6 +109,7 @@ const EmployeeManagement: React.FC = () => {
       dataIndex: 'salary',
       key: 'salary',
       sorter: (a, b) => a.salary - b.salary,
+      defaultSortOrder: 'descend',
       render: (salary: number) => `${salary.toLocaleString()} VNĐ`,
     },
     {
@@ -199,7 +204,6 @@ const EmployeeManagement: React.FC = () => {
           initialValues={selectedEmployee}
           onSubmit={handleSubmit}
           onCancel={() => setIsModalVisible(false)}
-          nextId={getNextId()}
           loading={loading}
         />
       </Modal>
