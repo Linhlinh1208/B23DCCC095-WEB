@@ -36,7 +36,12 @@
 		component: './RandomUser',
 		icon: 'ArrowsAltOutlined',
 	},
-
+	{
+		path: '/employee',
+		name: 'Quản lý nhân viên',
+		component: './EmployeeManagement',
+		icon: 'UserOutlined',
+	},
 	// DANH MUC HE THONG
 	// {
 	// 	name: 'DanhMuc',
@@ -75,6 +80,7 @@
 	},
 	{
 		path: '/',
+		redirect: '/dashboard',
 	},
 	{
 		path: '/403',
