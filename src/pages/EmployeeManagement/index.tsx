@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Table, Button, Space, Input, Select, Modal, message } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
 import EmployeeForm from '@/components/Quanlinhanvien/EmployeeForm';
 import { useModel } from 'umi';
 import { Employee, Position, Department, EmployeeStatus } from '@/models/Quanlinhanvien/types';
+import type { ColumnsType } from 'antd/es/table';
 
 const { Search } = Input;
 const { Option } = Select;
@@ -11,24 +12,29 @@ const { Option } = Select;
 const EmployeeManagement: React.FC = () => {
   const { employees, addEmployee, updateEmployee, deleteEmployee } = useModel('Quanlinhanvien.employeeModel');
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState<Employee | undefined>();
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | undefined>();
   const [searchText, setSearchText] = useState('');
-  const [positionFilter, setPositionFilter] = useState<string>('');
-  const [departmentFilter, setDepartmentFilter] = useState<string>('');
+  const [selectedPosition, setSelectedPosition] = useState<string | null>(null);
+  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const getNextId = () => {
+    return employees.length > 0 ? Math.max(...employees.map(emp => Number(emp.id))) + 1 : 1;
+  };
 
   const handleAdd = () => {
-    setEditingEmployee(undefined);
+    setSelectedEmployee(undefined);
     setIsModalVisible(true);
   };
 
   const handleEdit = (record: Employee) => {
-    setEditingEmployee(record);
+    setSelectedEmployee(record);
     setIsModalVisible(true);
   };
 
   const handleDelete = (record: Employee) => {
-    if (record.status !== EmployeeStatus.PROBATION && record.status !== EmployeeStatus.RESIGNED) {
-      message.error('Chỉ có thể xóa nhân viên đang thử việc hoặc đã thôi việc');
+    if (record.status === EmployeeStatus.ACTIVE) {
+      message.error('Không thể xóa nhân viên đang hoạt động');
       return;
     }
 
@@ -36,79 +42,87 @@ const EmployeeManagement: React.FC = () => {
       title: 'Xác nhận xóa',
       content: 'Bạn có chắc chắn muốn xóa nhân viên này?',
       onOk: () => {
+        setLoading(true);
         try {
           deleteEmployee(record.id);
+          message.success('Xóa nhân viên thành công');
         } catch (error) {
-          message.error('Có lỗi xảy ra khi xóa nhân viên');
+          message.error('Xóa nhân viên thất bại');
+        } finally {
+          setLoading(false);
         }
       },
     });
   };
 
   const handleSubmit = (values: Omit<Employee, 'id'>) => {
+    setLoading(true);
     try {
-      if (editingEmployee) {
-        updateEmployee(editingEmployee.id, values);
+      if (selectedEmployee) {
+        updateEmployee(selectedEmployee.id, values);
+        message.success('Cập nhật nhân viên thành công');
       } else {
         addEmployee(values);
+        message.success('Thêm nhân viên thành công');
       }
       setIsModalVisible(false);
     } catch (error) {
-      message.error('Có lỗi xảy ra khi lưu thông tin nhân viên');
+      message.error(selectedEmployee ? 'Cập nhật nhân viên thất bại' : 'Thêm nhân viên thất bại');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const columns = [
+  const columns: ColumnsType<Employee> = [
     {
       title: 'Mã nhân viên',
       dataIndex: 'id',
       key: 'id',
+      sorter: (a, b) => Number(a.id) - Number(b.id),
     },
     {
-      title: 'Họ tên',
+      title: 'Tên nhân viên',
       dataIndex: 'name',
       key: 'name',
+      sorter: (a, b) => a.name.localeCompare(b.name),
     },
     {
       title: 'Chức vụ',
       dataIndex: 'position',
       key: 'position',
+      filters: Object.values(Position).map((pos) => ({ text: pos, value: pos })),
+      onFilter: (value, record) => record.position === value,
     },
     {
       title: 'Phòng ban',
       dataIndex: 'department',
       key: 'department',
+      filters: Object.values(Department).map((dept) => ({ text: dept, value: dept })),
+      onFilter: (value, record) => record.department === value,
     },
     {
       title: 'Lương',
       dataIndex: 'salary',
       key: 'salary',
-      render: (salary: number) => `${salary.toLocaleString('vi-VN')} VNĐ`,
-      sorter: (a: Employee, b: Employee) => a.salary - b.salary,
+      sorter: (a, b) => a.salary - b.salary,
+      render: (salary: number) => `${salary.toLocaleString()} VNĐ`,
     },
     {
       title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
+      filters: Object.values(EmployeeStatus).map((status) => ({ text: status, value: status })),
+      onFilter: (value, record) => record.status === value,
     },
     {
       title: 'Thao tác',
       key: 'action',
-      render: (_: any, record: Employee) => (
+      render: (_, record) => (
         <Space size="middle">
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          >
+          <Button type="link" onClick={() => handleEdit(record)}>
             Sửa
           </Button>
-          <Button
-            type="link"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-          >
+          <Button type="link" danger onClick={() => handleDelete(record)}>
             Xóa
           </Button>
         </Space>
@@ -116,50 +130,55 @@ const EmployeeManagement: React.FC = () => {
     },
   ];
 
-  const filteredEmployees = employees
-    .filter((emp: Employee) => {
-      const matchesSearch = searchText === '' ||
-        emp.id.toLowerCase().includes(searchText.toLowerCase()) ||
-        emp.name.toLowerCase().includes(searchText.toLowerCase());
-      const matchesPosition = positionFilter === '' || emp.position === positionFilter;
-      const matchesDepartment = departmentFilter === '' || emp.department === departmentFilter;
-      return matchesSearch && matchesPosition && matchesDepartment;
-    })
-    .sort((a: Employee, b: Employee) => b.salary - a.salary);
+  const filteredEmployees = employees.filter((employee) => {
+    const matchesSearch =
+      employee.id.toString().includes(searchText) ||
+      employee.name.toLowerCase().includes(searchText.toLowerCase());
+    const matchesPosition = selectedPosition ? employee.position === selectedPosition : true;
+    const matchesDepartment = selectedDepartment ? employee.department === selectedDepartment : true;
+    return matchesSearch && matchesPosition && matchesDepartment;
+  });
 
   return (
     <div style={{ padding: '24px' }}>
       <div style={{ marginBottom: 16 }}>
         <Space>
+          <Input
+            placeholder="Tìm kiếm theo mã hoặc tên"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            style={{ width: 200 }}
+            prefix={<SearchOutlined />}
+          />
+          <Select
+            placeholder="Chọn chức vụ"
+            style={{ width: 200 }}
+            allowClear
+            onChange={setSelectedPosition}
+            value={selectedPosition}
+          >
+            {Object.values(Position).map((pos) => (
+              <Option key={pos} value={pos}>
+                {pos}
+              </Option>
+            ))}
+          </Select>
+          <Select
+            placeholder="Chọn phòng ban"
+            style={{ width: 200 }}
+            allowClear
+            onChange={setSelectedDepartment}
+            value={selectedDepartment}
+          >
+            {Object.values(Department).map((dept) => (
+              <Option key={dept} value={dept}>
+                {dept}
+              </Option>
+            ))}
+          </Select>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
             Thêm nhân viên
           </Button>
-          <Search
-            placeholder="Tìm kiếm theo mã hoặc tên"
-            allowClear
-            onSearch={value => setSearchText(value)}
-            style={{ width: 300 }}
-          />
-          <Select
-            placeholder="Lọc theo chức vụ"
-            allowClear
-            style={{ width: 200 }}
-            onChange={value => setPositionFilter(value)}
-          >
-            {Object.values(Position).map(pos => (
-              <Option key={pos} value={pos}>{pos}</Option>
-            ))}
-          </Select>
-          <Select
-            placeholder="Lọc theo phòng ban"
-            allowClear
-            style={{ width: 200 }}
-            onChange={value => setDepartmentFilter(value)}
-          >
-            {Object.values(Department).map(dept => (
-              <Option key={dept} value={dept}>{dept}</Option>
-            ))}
-          </Select>
         </Space>
       </div>
 
@@ -167,20 +186,21 @@ const EmployeeManagement: React.FC = () => {
         columns={columns}
         dataSource={filteredEmployees}
         rowKey="id"
-        pagination={{ pageSize: 10 }}
+        loading={loading}
       />
 
       <Modal
-        title={editingEmployee ? 'Chỉnh sửa nhân viên' : 'Thêm nhân viên mới'}
+        title={selectedEmployee ? 'Cập nhật nhân viên' : 'Thêm nhân viên mới'}
         visible={isModalVisible}
         onCancel={() => setIsModalVisible(false)}
         footer={null}
-        width={600}
       >
         <EmployeeForm
-          initialValues={editingEmployee}
+          initialValues={selectedEmployee}
           onSubmit={handleSubmit}
           onCancel={() => setIsModalVisible(false)}
+          nextId={getNextId()}
+          loading={loading}
         />
       </Modal>
     </div>
